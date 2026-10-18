@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AutoSense — Autonomous Vehicle Perception</title>
+<script>
+  /* apply persisted theme before first paint */
+  (function(){
+    try{
+      var t = localStorage.getItem('autosense.theme') || 'dark';
+      if(t === 'system'){
+        t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.themeResolved = 'system';
+      }
+      document.documentElement.dataset.theme = t;
+    }catch(e){ document.documentElement.dataset.theme = 'dark'; }
+  })();
+</script>
+<link rel="stylesheet" href="/css/style.css?v=6" />
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="%2307111F"/><path d="M8 21 L13 10 M16 22 L16 9 M24 21 L19 10" stroke="%2338BDF8" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="16" cy="24.5" r="1.6" fill="%2338BDF8"/></svg>' />
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 32 32" width="30" height="30">
+          <rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="var(--accent)" stroke-width="1.4" opacity="0.55"/>
+          <path d="M8 21 L13 10 M16 22.5 L16 9 M24 21 L19 10" stroke="var(--accent)" stroke-width="2.3" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="25" r="1.7" fill="var(--accent)"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">AutoSense</span>
+        <span class="brand-tag">SEE • TRACK • UNDERSTAND</span>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <a class="nav-item" data-page="dashboard"  href="#dashboard"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9"/></svg><span>Dashboard</span></a>
+      <a class="nav-item" data-page="video"      href="#video"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-2.5v9L16 14"/></svg><span>Video Input</span></a>
+      <a class="nav-item" data-page="detection"  href="#detection"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Detection</span></a>
+      <a class="nav-item" data-page="tracking"   href="#tracking"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.4 18h8.2a2 2 0 0 0 0-4H7.4a2 2 0 0 1 0-4H15"/></svg><span>Tracking</span></a>
+      <a class="nav-item" data-page="distance"   href="#distance"><svg viewBox="0 0 24 24"><path d="M4 20 20 6M4 20l3-1 1-1 1 1 1-1 1 1 2-2M20 6l-2-.5M20 6l.5 2"/></svg><span>Distance &amp; ROI</span></a>
+      <a class="nav-item" data-page="safety"     href="#safety"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.4c0 4.3 3 7.6 7 9.6 4-2 7-5.3 7-9.6V6l-7-3Z"/><path d="m9 12 2 2 4-4.2"/></svg><span>Safety Analysis</span></a>
+      <a class="nav-item" data-page="viz"        href="#viz"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16v-5M12 16V8M17 16v-3"/></svg><span>Visualizations</span></a>
+      <a class="nav-item" data-page="model"      href="#model"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span>Model</span></a>
+      <a class="nav-item" data-page="settings"   href="#settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.36.95a7 7 0 0 0-2.42-1.4L13.7 2.6h-3.4l-.38 2.54a7 7 0 0 0-2.42 1.4l-2.36-.95-2 3.46 2 1.55A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.55 2 3.46 2.36-.95c.72.6 1.55 1.08 2.42 1.4l.38 2.54h3.4l.38-2.54a7 7 0 0 0 2.42-1.4l2.36.95 2-3.46-2-1.55c.09-.46.14-.92.14-1.4Z"/></svg><span>Settings</span></a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="conn-pill" id="conn-pill" title="Telemetry transport">
+        <span class="dot gray" id="conn-dot"></span><span id="conn-text">Connecting…</span>
+      </div>
+      <div class="version">AutoSense v1.0 · Vehicle Perception</div>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN COLUMN ============================ -->
+  <div class="main-col">
+
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1>Autonomous Vehicle Perception</h1>
+        <p>Real-Time Road Understanding for a Safer Tomorrow</p>
+      </div>
+      <div class="topbar-right">
+        <div class="clock">
+          <span id="clock-time">--:-- --</span>
+          <span id="clock-date" class="muted">—</span>
+        </div>
+        <div class="status-pill" id="status-pill" data-state="idle" title="Pipeline state">
+          <span class="dot"></span><span id="status-text">Starting</span>
+        </div>
+        <button class="icon-btn" id="btn-camera" title="Video input">
+          <svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="11" rx="2"/><path d="m16 10.5 5-2.5v8L16 13.5"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-theme" title="Toggle theme">
+          <svg viewBox="0 0 24 24" id="icon-moon"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+          <svg viewBox="0 0 24 24" id="icon-sun" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-settings" title="Settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.36.95a7 7 0 0 0-2.42-1.4L13.7 2.6h-3.4l-.38 2.54a7 7 0 0 0-2.42 1.4l-2.36-.95-2 3.46 2 1.55A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.55 2 3.46 2.36-.95c.72.6 1.55 1.08 2.42 1.4l.38 2.54h3.4l.38-2.54a7 7 0 0 0 2.42-1.4l2.36.95 2-3.46-2-1.55c.09-.46.14-.92.14-1.4Z"/></svg>
+        </button>
+        <div class="avatar" title="Operator — Sarthak">SA</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <main id="pages">
+
+        <!-- ===================== PAGE: DASHBOARD ===================== -->
+        <section class="page" id="page-dashboard">
+          <div class="video-hero card">
+            <div class="video-header">
+              <div class="vh-left">
+                <svg viewBox="0 0 24 24" class="vh-icon"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-2.5v9L16 14"/></svg>
+                <span class="vh-label">Input:</span>
+                <b id="vh-source" class="mono">—</b>
+              </div>
+              <div class="vh-right mono">
+                <span id="vh-fps">FPS —</span>
+                <span id="vh-res">— × —</span>
+                <button class="device-badge" id="btn-device" title="Compute device running inference — click to switch GPU / CPU">CPU</button>
+                <button class="turbo-btn" id="btn-turbo" title="Turbo FPS: runs inference at 320px for the maximum frame rate this CPU can deliver (slightly lower accuracy). Click again to return to 640px accuracy mode.">⚡ Turbo FPS</button>
+                <button class="mini-btn" id="btn-pause" title="Pause / Resume">
+                  <svg viewBox="0 0 24 24" id="ico-pause"><path d="M8 5v14M16 5v14"/></svg>
+                  <svg viewBox="0 0 24 24" id="ico-play" style="display:none"><path d="m7 4 13 8-13 8Z"/></svg>
+                </button>
+                <button class="mini-btn" id="btn-restart" title="Restart video">
+                  <svg viewBox="0 0 24 24"><path d="M4 5v5h5M4.6 10a8 8 0 1 1 .7 5"/></svg>
+                </button>
+                <button class="mini-btn" id="btn-fullscreen" title="Fullscreen">
+                  <svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="video-stage" id="video-stage">
+              <!-- video layer: single poster frame; live frames are painted on the
+                   transparent canvas above (see Video transport in app.js) -->
+              <img id="video-img" src="/api/video/frame" alt="Perception stream" draggable="false" />
+
+              <!-- transparent canvas: frames are demuxed from the MJPEG stream
+                   and painted here with clearRect + drawImage (no white stalls) -->
+              <canvas id="video-canvas" class="video-canvas" aria-label="Perception stream"></canvas>
+              <div id="roi-frame-state" class="roi-frame-state hidden" data-state="fallback">
+                <span class="dot amber"></span><span>ROI UNCERTAIN</span>
+              </div>
+
+              <div id="risk-banner" class="risk-banner hidden">
+                <svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Zm0 7v4m0 3v.5"/></svg>
+                <span id="risk-banner-text">COLLISION WARNING</span>
+              </div>
+
+              <div id="paused-veil" class="paused-veil hidden">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
+                <span>Paused</span>
+              </div>
+
+              <!-- top-right overlay cluster -->
+              <div class="vh-overlay top-right">
+                <button class="ghost-btn" id="btn-overlay-menu" title="Overlay layers">
+                  <svg viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+                  Layers
+                </button>
+                <div class="overlay-menu card hidden" id="overlay-menu">
+                  <label><input type="checkbox" data-ov="boxes" checked> Bounding Boxes</label>
+                  <label><input type="checkbox" data-ov="confidence" checked> Confidence</label>
+                  <label><input type="checkbox" data-ov="ids" checked> Tracking IDs</label>
+                  <label><input type="checkbox" data-ov="distance" checked> Distance</label>
+                  <label><input type="checkbox" data-ov="roi"> ROI Corridor</label>
+                  <label><input type="checkbox" data-ov="lane"> Lane Boundaries &amp; Confidence</label>
+                  <label><input type="checkbox" data-ov="risk"> Risk Overlay</label>
+                </div>
+              </div>
+
+              <!-- bottom-left: ego speed -->
+              <div class="vh-overlay bottom-left">
+                <div class="speed-widget" id="speed-widget" title="No ego-speed source connected">
+                  <b id="ego-speed">—</b>
+                  <span>km/h</span>
+                </div>
+              </div>
+
+              <!-- bottom-center: trajectory / ROI mini viz -->
+              <div class="vh-overlay bottom-center">
+                <canvas id="traj-canvas" width="200" height="104"></canvas>
+              </div>
+
+              <!-- bottom-right: orientation -->
+              <div class="vh-overlay bottom-right">
+                <div class="compass" title="No IMU connected — heading unavailable">
+                  <svg viewBox="0 0 24 24"><path d="m12 4 3 8-3 8-3-8 3-8Z"/><circle cx="12" cy="12" r="9"/></svg>
+                  <span id="heading">N/A</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- lower analytics -->
+          <div class="lower-grid">
+            <div class="card low-card" id="recent-card">
+              <div class="card-title"><span>Recent Detections</span><span class="muted mono" id="recent-count"></span></div>
+              <div class="recent-list" id="recent-list"><div class="empty-note">Waiting for detections…</div></div>
+            </div>
+
+            <div class="card low-card">
+              <div class="card-title"><span>Class Distribution</span></div>
+              <div class="dist-wrap">
+                <div class="donut-box">
+                  <canvas id="donut-canvas" width="150" height="150"></canvas>
+                  <div class="donut-center"><b id="donut-total">0</b><span>Objects</span></div>
+                </div>
+                <div class="legend" id="dist-legend"><div class="empty-note">No objects in frame</div></div>
+              </div>
+            </div>
+
+            <div class="card low-card">
+              <div class="card-title"><span>Performance History</span></div>
+              <canvas id="fps-canvas" width="100%" height="90"></canvas>
+              <div class="hist-foot mono">
+                <div><span class="muted">Frames</span><b id="hist-frames">0</b></div>
+                <div><span class="muted">Detections</span><b id="hist-dets">0</b></div>
+                <div><span class="muted">Uptime</span><b id="hist-uptime">0s</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: VIDEO INPUT ===================== -->
+        <section class="page hidden" id="page-video">
+          <div class="page-grid">
+            <div class="card">
+              <div class="card-title"><span>Current Source</span></div>
+              <div class="src-current">
+                <div class="src-name mono" id="src-name">—</div>
+                <div class="src-meta mono muted" id="src-meta">—</div>
+                <div class="progress"><div class="progress-fill" id="src-progress"></div></div>
+                <div class="src-time mono muted" id="src-time">0.0s / 0.0s</div>
+                <div class="btn-row">
+                  <button class="btn" id="ctrl-play">▶ Start</button>
+                  <button class="btn" id="ctrl-pause">⏸ Pause</button>
+                  <button class="btn" id="ctrl-resume">⏵ Resume</button>
+                  <button class="btn" id="ctrl-restart">⟲ Restart</button>
+                  <button class="btn danger" id="ctrl-stop">■ Stop</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Sample Videos</span><span class="muted">bundled road footage</span></div>
+              <div class="src-list" id="sample-list"><div class="empty-note">Loading…</div></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Upload Video</span><span class="muted">mp4 / avi / mov / mkv</span></div>
+              <div class="dropzone" id="video-drop">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
+                <p>Drag &amp; drop a video here, or</p>
+                <label class="btn accent">Browse files<input type="file" id="video-file" accept="video/*" hidden></label>
+                <div class="upload-status mono" id="video-upload-status"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Live Camera</span><span class="muted">device capture</span></div>
+              <div class="camera-box">
+                <div class="field-row">
+                  <label for="cam-index">Camera device</label>
+                  <select id="cam-index" class="select mono">
+                    <option value="0">Camera 0 (default)</option>
+                    <option value="1">Camera 1</option>
+                    <option value="2">Camera 2</option>
+                    <option value="3">Camera 3</option>
+                  </select>
+                </div>
+                <div class="btn-row">
+                  <button class="btn" id="cam-detect">Detect Cameras</button>
+                  <button class="btn accent" id="cam-start">Start Camera</button>
+                  <button class="btn danger" id="cam-stop">Stop</button>
+                </div>
+                <p class="note" id="cam-note">Requires a camera device attached to the server. Use <b>Detect Cameras</b> to probe which device indices are available, then pick one and start.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: DETECTION ===================== -->
+        <section class="page hidden" id="page-detection">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Detection Parameters</span></div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Confidence Threshold</label><b class="mono" id="conf-val">0.35</b></div>
+                <input type="range" id="conf-slider" min="5" max="90" value="35">
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>IoU Threshold (NMS)</label><b class="mono" id="iou-val">0.45</b></div>
+                <input type="range" id="iou-slider" min="10" max="90" value="45">
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Input Size</label><b class="mono" id="imgsz-val">640</b></div>
+                <div class="seg" id="imgsz-seg">
+                  <button data-v="320">320</button><button data-v="416">416</button>
+                  <button data-v="640" class="on">640</button><button data-v="960">960</button>
+                  <button data-v="1280">1280</button>
+                </div>
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Performance Mode <span class="muted">(lower input size → higher FPS on CPU)</span></label></div>
+                <div class="seg" id="perf-seg">
+                  <button data-v="320" id="btn-perf-turbo">Turbo (320) — max FPS</button>
+                  <button data-v="640" id="btn-perf-normal" class="on">Normal (640) — max accuracy</button>
+                </div>
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Compute Device <span class="muted">(GPU needs the CUDA torch build)</span></label></div>
+                <div class="seg" id="device-seg">
+                  <button data-v="auto">Auto</button>
+                  <button data-v="gpu">GPU</button>
+                  <button data-v="cpu">CPU</button>
+                </div>
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Model</label></div>
+                <select id="det-model" class="select mono"></select>
+              </div>
+              <p class="note">Parameters apply to the live pipeline immediately — watch FPS / inference react in the Performance panel.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Detections</span><span class="muted mono" id="det-total">0 in frame</span></div>
+              <div class="table-wrap">
+                <table class="tbl" id="det-table">
+                  <thead><tr><th>Class</th><th>Conf</th><th>Track</th><th>Distance</th><th>TTC</th><th>Risk</th><th>ROI Relevance</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <div class="empty-note" id="det-empty">No detections in current frame</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: TRACKING ===================== -->
+        <section class="page hidden" id="page-tracking">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Tracker Configuration</span></div>
+              <div class="ctrl row">
+                <label>Enable Tracking</label>
+                <label class="switch"><input type="checkbox" id="trk-enable" checked><span></span></label>
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Tracker</label></div>
+                <div class="seg" id="tracker-seg">
+                  <button data-v="bytetrack.yaml" class="on">ByteTrack</button>
+                  <button data-v="botsort.yaml">BoT-SORT</button>
+                </div>
+              </div>
+              <div class="ctrl row">
+                <label>Show Track IDs on video</label>
+                <label class="switch"><input type="checkbox" id="trk-ids" checked><span></span></label>
+              </div>
+              <div class="stat-row mono">
+                <div><b id="trk-active">0</b><span class="muted">active tracks</span></div>
+                <div><b id="trk-mode">ByteTrack</b><span class="muted">algorithm</span></div>
+              </div>
+              <p class="note">Tracking uses the ultralytics tracker integration (<span class="mono">model.track</span>), the same entry point as the original <span class="mono">tracking/tracker.py</span>. Track persistence powers smooth distances and per-object TTC.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Active Tracks</span><span class="muted mono" id="trk-count2">0</span></div>
+              <div class="table-wrap">
+                <table class="tbl" id="trk-table">
+                  <thead><tr><th>ID</th><th>Class</th><th>Distance</th><th>Age</th><th>Frames</th><th>ROI</th><th>Risk</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <div class="empty-note" id="trk-empty">No active tracks</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: DISTANCE & ROI ===================== -->
+        <section class="page hidden" id="page-distance">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Distance Calibration</span><span class="muted">perception/distance.py</span></div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label> focal length (px)</label><b class="mono" id="focal-val">700</b></div>
+                <input type="range" id="focal-slider" min="300" max="1500" value="700">
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Smoothing window</label><b class="mono" id="smooth-val">5</b></div>
+                <input type="range" id="smooth-slider" min="1" max="15" value="5">
+              </div>
+              <p class="note mono">D = (H × F) / h — real object height × focal length ÷ bounding-box height, smoothed per track ID.</p>
+
+              <div class="card-title" style="margin-top:18px"><span>Driving ROI Corridor</span><span class="muted">perception/roi.py</span></div>
+              <div class="ctrl"><div class="ctrl-head"><label>Ego center ratio</label><b class="mono" id="roi-ego-val">0.62</b></div>
+                <input type="range" id="roi-ego" min="30" max="75" value="62"></div>
+              <div class="ctrl"><div class="ctrl-head"><label>Top width ratio</label><b class="mono" id="roi-top-val">0.30</b></div>
+                <input type="range" id="roi-top" min="5" max="60" value="30"></div>
+              <div class="ctrl"><div class="ctrl-head"><label>Bottom width ratio</label><b class="mono" id="roi-bottom-val">0.75</b></div>
+                <input type="range" id="roi-bottom" min="20" max="100" value="75"></div>
+              <div class="ctrl"><div class="ctrl-head"><label>Height start ratio</label><b class="mono" id="roi-hs-val">0.70</b></div>
+                <input type="range" id="roi-hs" min="40" max="90" value="70"></div>
+              <div class="roi-coords mono muted" id="roi-coords">—</div>
+
+              <div class="card-title" style="margin-top:18px"><span>Dynamic ROI — Classical CV</span><span class="muted">no lane model</span></div>
+              <div class="ctrl row">
+                <label for="roi-dynamic">Estimate boundaries per frame</label>
+                <label class="switch"><input type="checkbox" id="roi-dynamic" checked><span></span></label>
+              </div>
+              <div class="roi-live-status mono" id="roi-live-status" data-state="fallback">Waiting for a video frame · fallback ROI only</div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Perspective search horizon</label><b class="mono" id="roi-search-top-val">0.50</b></div>
+                <input type="range" id="roi-search-top" min="30" max="70" value="50">
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Search width at horizon</label><b class="mono" id="roi-search-top-width-val">0.30</b></div>
+                <input type="range" id="roi-search-top-width" min="10" max="75" value="30">
+              </div>
+              <div class="ctrl">
+                <div class="ctrl-head"><label>Search width at frame bottom</label><b class="mono" id="roi-search-bottom-width-val">0.88</b></div>
+                <input type="range" id="roi-search-bottom-width" min="40" max="100" value="88">
+              </div>
+              <details class="roi-advanced">
+                <summary>Edge, confidence &amp; temporal tuning</summary>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Canny low threshold</label><b class="mono" id="roi-canny-low-val">50</b></div>
+                  <input type="range" id="roi-canny-low" min="10" max="150" value="50">
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Canny high threshold</label><b class="mono" id="roi-canny-high-val">150</b></div>
+                  <input type="range" id="roi-canny-high" min="50" max="255" value="150">
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Hough vote threshold</label><b class="mono" id="roi-hough-val">24</b></div>
+                  <input type="range" id="roi-hough" min="5" max="80" value="24">
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Minimum geometry confidence</label><b class="mono" id="roi-min-conf-val">0.30</b></div>
+                  <input type="range" id="roi-min-conf" min="10" max="75" value="30">
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Temporal smoothing</label><b class="mono" id="roi-smoothing-val">0.35</b></div>
+                  <input type="range" id="roi-smoothing" min="10" max="100" value="35">
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head"><label>Maximum reused frames</label><b class="mono" id="roi-reuse-val">8</b></div>
+                  <input type="range" id="roi-reuse" min="0" max="30" value="8">
+                </div>
+              </details>
+              <p class="note">When edges are weak or ambiguous, the engine marks the corridor uncertain, briefly reuses recent geometry, then returns to this configured fallback. This is not a certified lane detector.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Corridor Schematic</span><span class="muted">live from ROI + detections</span></div>
+              <canvas id="roi-canvas" width="100%" height="280"></canvas>
+              <div class="table-wrap" style="margin-top:12px">
+                <table class="tbl" id="dist-table">
+                  <thead><tr><th>Object</th><th>Track</th><th>Pixel h</th><th>Distance</th><th>ROI</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <div class="empty-note" id="dist-empty">No distance estimates available</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: SAFETY ===================== -->
+        <section class="page hidden" id="page-safety">
+          <div class="safety-hero card" id="safety-hero" data-risk="SAFE">
+            <div class="sh-left">
+              <span class="sh-label">Overall Risk</span>
+              <b id="sh-risk">SAFE</b>
+            </div>
+            <div class="sh-mid">
+              <div><span class="muted">Decision</span><b class="mono" id="sh-decision">CONTINUE</b></div>
+              <div><span class="muted">Closest object in path</span><b class="mono" id="sh-closest">—</b></div>
+              <div><span class="muted">Minimum TTC</span><b class="mono" id="sh-ttc">—</b></div>
+            </div>
+            <div class="sh-right muted">Safety layer: safety/ttc.py + safety/collision.py + safety/decision.py</div>
+          </div>
+
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Risk Timeline</span><span class="muted">last ~2 min</span></div>
+              <canvas id="risk-canvas" width="100%" height="52"></canvas>
+              <div class="legend-row">
+                <span><i class="sw rl-safe"></i>SAFE</span><span><i class="sw rl-warning"></i>WARNING</span>
+                <span><i class="sw rl-danger"></i>DANGER</span><span><i class="sw rl-critical"></i>CRITICAL</span>
+              </div>
+
+              <div class="card-title" style="margin-top:16px"><span>Risk Thresholds</span><span class="muted">safety/collision.py</span></div>
+              <table class="tbl compact" id="threshold-table">
+                <thead><tr><th>Level</th><th>Distance ≤</th><th>TTC ≤</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Per-Object Collision Metrics</span></div>
+              <div class="table-wrap">
+                <table class="tbl" id="ttc-table">
+                  <thead><tr><th>Track</th><th>Class</th><th>Distance</th><th>Closing v</th><th>TTC</th><th>Risk</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <div class="empty-note" id="ttc-empty">No approaching objects</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: VISUALIZATIONS ===================== -->
+        <section class="page hidden" id="page-viz">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Overlay Layers</span><span class="muted">applied server-side</span></div>
+              <div class="ov-list">
+                <label class="ov-row"><input type="checkbox" data-ov="boxes" checked><span><b>Bounding Boxes</b><em>Detection rectangles, color = risk when Risk Overlay is on</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="confidence" checked><span><b>Confidence</b><em>YOLO score appended to labels</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="ids" checked><span><b>Tracking IDs</b><em>ByteTrack identity per object</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="distance" checked><span><b>Distance</b><em>Monocular estimate in meters</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="roi"><span><b>ROI Corridor</b><em>Dynamic polygon with configured trapezoid fallback</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="lane"><span><b>Lane Boundaries &amp; Uncertainty</b><em>OpenCV Canny/Hough geometry; no additional learned model</em></span></label>
+                <label class="ov-row"><input type="checkbox" data-ov="risk"><span><b>Risk Overlay</b><em>Risk-colored boxes + TTC + safety HUD inset</em></span></label>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span>Live Preview</span></div>
+              <div class="viz-preview">
+                <img id="viz-img" alt="preview" draggable="false">
+              </div>
+              <p class="note">Colour coding (Risk Overlay on): <i class="sw rl-safe"></i>safe&nbsp; <i class="sw rl-warning"></i>warning&nbsp; <i class="sw rl-danger"></i>danger&nbsp; <i class="sw rl-critical"></i>critical&nbsp; <i class="sw" style="background:#9ca3af"></i>outside corridor</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: MODEL ===================== -->
+        <section class="page hidden" id="page-model">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Active Model</span></div>
+              <div class="model-hero">
+                <div class="model-name mono" id="model-name">—</div>
+                <div class="model-grid mono">
+                  <div><span class="muted">Runtime</span><b>Ultralytics YOLO</b></div>
+                  <div><span class="muted">Device</span><b id="model-device">CPU</b></div>
+                  <div><span class="muted">Input</span><b id="model-input">640 × 640</b></div>
+                  <div><span class="muted">Last inference</span><b id="model-infer">—</b></div>
+                </div>
+                <div class="classes-label muted">Classes (<span id="model-class-count">0</span>)</div>
+                <div class="class-chips" id="model-classes"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Available Weights</span><span class="muted">backend/models/</span></div>
+              <div class="src-list" id="model-list"><div class="empty-note">Loading…</div></div>
+              <div class="card-title" style="margin-top:16px"><span>Upload Custom Weights</span></div>
+              <div class="dropzone small" id="model-drop">
+                <p>Drop your trained <b class="mono">best.pt</b> here, or</p>
+                <label class="btn accent">Browse .pt<input type="file" id="model-file" accept=".pt" hidden></label>
+                <div class="upload-status mono" id="model-upload-status"></div>
+              </div>
+              <p class="note">Trained your own model (e.g. with the notebook in your repo)? Upload it — AutoSense will load its class names directly from the file. Unrecognised classes are grouped under “Other”.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PAGE: SETTINGS ===================== -->
+        <section class="page hidden" id="page-settings">
+          <div class="page-grid-2">
+            <div class="card">
+              <div class="card-title"><span>Appearance</span></div>
+              <div class="theme-radios" id="theme-radios">
+                <label><input type="radio" name="theme" value="dark"><span class="tr-box tr-dark"></span>Dark<em>default engineering theme</em></label>
+                <label><input type="radio" name="theme" value="light"><span class="tr-box tr-light"></span>Light<em>bright workstation theme</em></label>
+                <label><input type="radio" name="theme" value="system"><span class="tr-box tr-system"></span>System<em>follows your OS</em></label>
+              </div>
+              <p class="note">Persisted in <span class="mono">localStorage</span> — reopening the app keeps your choice.</p>
+
+              <div class="card-title" style="margin-top:16px"><span>Stream Transport</span></div>
+              <div class="seg" id="stream-seg">
+                <button data-v="mjpeg" class="on">MJPEG stream</button>
+                <button data-v="polling">Snapshot polling</button>
+              </div>
+              <p class="note">MJPEG is smoothest. If your network buffers multipart streams, switch to snapshot polling (plain JPEG requests).</p>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Connection</span></div>
+              <div class="conn-table mono">
+                <div><span class="muted">Telemetry</span><b id="conn-transport">—</b></div>
+                <div><span class="muted">Last update</span><b id="conn-age">—</b></div>
+                <div><span class="muted">Pipeline state</span><b id="conn-state">—</b></div>
+              </div>
+
+              <div class="card-title" style="margin-top:16px"><span>Pipeline</span></div>
+              <div class="pipe-diagram mono">
+                <span>Video</span>→<span>YOLO11n</span>→<span>Detection</span>→<span>ByteTrack</span>→<span>Distance</span>→<span>TTC / Risk</span>→<span>Frontend</span>
+              </div>
+              <p class="note">Every figure in this dashboard comes from the running pipeline. Modules that are not connected report “Not available” instead of fabricated data.</p>
+              <button class="btn" id="btn-reset-settings">Reset UI preferences</button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ===================== RIGHT PANEL ===================== -->
+      <aside class="right-panel">
+
+        <div class="card rp-card">
+          <div class="card-title"><span>Live Statistics</span></div>
+          <div class="stat-grid">
+            <div class="stat-mini">
+              <svg viewBox="0 0 24 24" class="si"><path d="M4 15l1.6-4.5A2 2 0 0 1 7.5 9h9a2 2 0 0 1 1.9 1.5L20 15v4h-2.2v-1.5H6.2V19H4v-4Zm2.4-4-1 3h13.2l-1-3H6.4ZM6.5 16.4a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Zm11 0a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"/></svg>
+              <b id="st-vehicles" class="mono">0</b><span>Vehicles</span>
+            </div>
+            <div class="stat-mini">
+              <svg viewBox="0 0 24 24" class="si"><circle cx="12" cy="6" r="2.6"/><path d="M12 9.5 9.8 13l1 2-1.3 5h2l1-3.6 1 3.6h2l-1.3-5 1-2-2.2-3.5ZM9.5 13.5h5"/></svg>
+              <b id="st-pedestrians" class="mono">0</b><span>Pedestrians</span>
+            </div>
+            <div class="stat-mini">
+              <svg viewBox="0 0 24 24" class="si"><circle cx="6" cy="17" r="2.6"/><circle cx="18" cy="17" r="2.6"/><path d="M6 17h6l2.5-6H19M12 7h2.5l1 4M9 11h4"/></svg>
+              <b id="st-twos" class="mono">0</b><span>Two Wheelers</span>
+            </div>
+            <div class="stat-mini">
+              <svg viewBox="0 0 24 24" class="si"><path d="M12 3 17 5v5c0 4-2.4 6.6-5 8-2.6-1.4-5-4-5-8V5l5-2Z" opacity=".0"/><path d="M7 3h10l4 7-4 7H7l-4-7 4-7Z"/><path d="M8 17v4M16 17v4"/></svg>
+              <b id="st-signs" class="mono">0</b><span>Traffic Signs</span>
+            </div>
+          </div>
+          <div class="rp-foot muted mono" id="st-other"></div>
+        </div>
+
+        <div class="card rp-card">
+          <div class="card-title"><span>System Status</span></div>
+          <div class="module-list" id="module-list"></div>
+        </div>
+
+        <div class="card rp-card">
+          <div class="card-title"><span>Performance</span></div>
+          <div class="perf-grid">
+            <div class="perf-main"><b id="perf-fps" class="mono">—</b><span>FPS</span></div>
+            <div class="perf-sub">
+              <div><b id="perf-inf" class="mono">—</b><span>YOLO inference</span></div>
+              <div><b id="perf-latency" class="mono">—</b><span>Frame latency</span></div>
+              <div><b id="perf-input" class="mono">—</b><span>Input Size</span></div>
+            </div>
+          </div>
+          <div class="perf-extra mono muted" id="perf-extra">—</div>
+        </div>
+
+        <div class="card rp-card" id="safety-card">
+          <div class="card-title"><span>Safety</span></div>
+          <div class="safety-box" id="rp-risk" data-risk="SAFE"><b id="rp-risk-text">SAFE</b></div>
+          <div class="safety-rows mono">
+            <div><span class="muted">Decision</span><b id="rp-decision">—</b></div>
+            <div><span class="muted">Closest in path</span><b id="rp-closest">—</b></div>
+            <div><span class="muted">Min TTC</span><b id="rp-ttc">—</b></div>
+          </div>
+        </div>
+
+        <div class="card rp-card">
+          <div class="card-title"><span>Quick Actions</span></div>
+          <div class="qa-grid">
+            <button class="qa" id="qa-distance">Test Distance Estimation</button>
+            <button class="qa" id="qa-risk">Run Risk Analysis</button>
+            <button class="qa" id="qa-tracks">View Tracking IDs</button>
+            <button class="qa" id="qa-report">Generate Report</button>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="/js/app.js?v=6"></script>
+</body>
+</html>

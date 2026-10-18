@@ -1,0 +1,49 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+.env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime logs and generated output
+*.log
+*.err
+outputs/
+backend/uploads/
+backend/models/temp/
+
+# Local media and source-project artifacts
+Documents/
+Presentation/
+video/
+*.mp4
+
+# Frontend dependencies and build output
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Editors and operating-system files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.pt

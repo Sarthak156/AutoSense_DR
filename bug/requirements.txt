@@ -1,0 +1,14 @@
+# AutoSense web app dependencies (superset of the original requirements.txt)
+ultralytics
+opencv-python
+numpy
+# NOTE: on Windows, plain `pip install torch` installs the CPU-ONLY build
+# (torch-x.y.z+cpu) even when an NVIDIA GPU is present. For GPU inference,
+# replace torch/torchvision with the build matching the machine's CUDA/driver:
+#   https://pytorch.org/get-started/locally/
+torch
+torchvision
+PyYAML
+fastapi
+uvicorn[standard]
+python-multipart
